@@ -1,0 +1,9 @@
+# --- Python / Jupyter / macOS clutter -------------------------------------
+__pycache__/
+.ipynb_checkpoints/
+.DS_Store
+
+# --- Your working folder ----------------------------------------------------
+# Notebook copies, data, calibrations and results all live in work/, which is
+# created from work_template/ by `python tools/setup_work.py`. Never committed.
+work/

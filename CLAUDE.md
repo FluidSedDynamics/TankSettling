@@ -1,5 +1,7 @@
 # CLAUDE.md
 
+> **Branch `settings-files`:** work in progress on moving notebook inputs into settings files. Read [PLAN_settings_files.md](PLAN_settings_files.md) before making changes on this branch. Remove this note and the plan before merging into `main`.
+
 Guidance for Claude Code sessions in this repo. The README covers what the toolbox does and how users run it; this file covers how to work on it.
 
 ## Layout in one paragraph

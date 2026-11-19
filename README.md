@@ -60,7 +60,7 @@ docs/                            documentation
 
 * [Theory of the fit](docs/01_theory.md): the model, the turbulence calibration, estimation and uncertainty, assumptions.
 * [User guide](docs/02_user_guide.md): installation, data preparation, a step-by-step walk-through of steps 1 to 3, quality checks, troubleshooting.
-* [Reference](docs/03_reference.md): file formats, every notebook input, every function and option.
+* [Reference](docs/03_reference.md): file formats, every notebook input, every function and option, and reference results for the sample standard.
 
 ## Things to know before using results
 

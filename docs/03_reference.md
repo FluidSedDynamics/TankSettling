@@ -310,7 +310,32 @@ All least-squares fits report the Jacobian-based 1-σ scaled by the residual var
 
 ---
 
-## 3.9 Version notes
+## 3.9 Reference results (75–90 µm standard, 1200 kg m⁻³, 60 rpm)
+
+Benchmarks from the sample data (`MicroSphere_75_90_SAMPLE.csv`, `ADV_02_60rpm_SAMPLE.dat`). Use them to check an installation and as a guide to what normal values look like for this tank.
+
+**Turbulence models compared** (calibration on the standard):
+
+| Turbulence model | K₀ (m² s⁻¹) | τ (s) | K_min (m² s⁻¹) | rms |
+|---|---|---|---|---|
+| exponential, K₀ and τ free | 8.0e-5 | 32 | 5e-8 (fixed) | 0.0815 |
+| exponential, K₀, τ and K_min free | 9.2e-5 | 14 | 3.5e-6 | 0.0798 |
+| ADV shape, K₀ free | 1.0e-4 | — | 5e-8 (fixed) | 0.087 |
+| ADV shape, K₀ and K_min free (default) | 1.0e-4 | — | 4.4e-6 | 0.080 |
+
+The models fit about equally well (rms 0.080–0.087 against sensor noise of about 0.04), so the OBS decay alone does not discriminate between them; this is why the ADV shape is used. Freeing K_min improves the rms from about 0.087 to 0.080, although K_min itself is only weakly determined (fractional 1-σ about 0.2).
+
+**K₀ against the assumed density of the standard** (ADV shape, K₀ and K_min free): 1150 kg m⁻³ → 4.2e-5, 1175 → 6.6e-5, 1200 → 1.0e-4, 1225 → 1.5e-4, 1250 → 2.6e-4 m² s⁻¹, with rms 0.080–0.084 throughout. K₀ changes by about a factor of 2.5 for ±50 kg m⁻³.
+
+**Sensitivity of the fit to K₀:** halving or doubling K₀ moves the fitted velocity of the standard from 0.56 to 0.74 mm s⁻¹ (implied density 1169–1221 kg m⁻³ against a true 1200).
+
+**Step 3 on the standard** (also the calibration run, so this only confirms the code path): density 1199 ± 3 kg m⁻³, w₅₀ = 0.662 mm s⁻¹, rms 0.080; with K₀ divided and multiplied by 1.4 the density is 1185 and 1211 kg m⁻³. A one-row PSD of 82.5 µm gives 1198 kg m⁻³. A 7-class fit takes about 5–10 s, about 25 s with the two K₀ sensitivity fits.
+
+**Other mixer rates:** the 30 rpm ADV record gives the same K₀ and K_min when its shape is used, although it has about 7× less initial energy and a broader plateau before decaying. Use the ADV record that matches the mixer rate of the OBS runs.
+
+---
+
+## 3.10 Version notes
 
 * v01 of the two notebooks introduces the calibration file, the multi-run fit and the repository layout. `tools/settling_tools.py` was previously `settling_single.py`.
 * Earlier single-size notebooks (`SettlingFit_SingleClass_v01/v02`, `SettlingFit_v03`, `SettlingFit_PSD_v01`) are superseded by steps 2 and 3 and are not part of the repository.

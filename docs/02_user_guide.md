@@ -49,7 +49,7 @@ Developed and tested with Python 3.13, numpy 2.5, scipy 1.18, pandas 3.0 and mat
 1. `0_ADV_data_tank_v01.ipynb` writes `data_ADV/filtered/ADV_02_60rpm_SAMPLE_filtered_decay_only.csv` (only needed to re-run step 2);
 2. `1_OBS_timeseries_v04.ipynb` writes `data_OBS/MicroSphere_75_90_SAMPLE_time_series_decayONLY.csv`;
 3. `2_SettlingCalibration_v01.ipynb` (optional) rewrites `calibrations/cal_60rpm.json` with the same values;
-4. `3_SettlingFit_v01.ipynb` fits the sample in about a minute and reports a density of about 1199 kg m⁻³ for the 75–90 µm standard.
+4. `3_SettlingFit_v01.ipynb` fits the sample in about a minute and reports a density of about 1198 kg m⁻³ for the 75–90 µm standard.
 
 ## 2.3 Data you need
 
@@ -95,15 +95,15 @@ The raw file is the logger's csv export (TOA5 format: four header lines, then on
 
 Open `2_SettlingCalibration_v01.ipynb`.
 
-1. **Set the input cell.** File names for the standard's OBS csv and the matching ADV csv; the rotation rate (`rpm`); tank geometry (water depth and sensor height above the bottom, in inches); water temperature and salinity; the settling-law coefficient (`coef`); the standard's size range, number of size classes and density. Leave the turbulence options at their defaults (`turb_mode = 'adv'`) unless you have a reason to change them. The output goes to `calibration_file`, for example `calibrations/cal_60rpm.json`; use a name that includes the mixer rate.
-2. **Run the notebook from the top.** It takes about two minutes, most of it the density table.
-3. **Check the ADV shape plot.** The fluctuation variance should fall from a high value to a roughly flat noise floor within 20–35 s, and the noise-floor line should sit on that flat part. The shape should start at 1 and decay smoothly to zero. If the record is too short for the noise floor to be estimated from after 60 s, lower `adv_noise_from_s`; if the record starts with a weak spin-up window, set `adv_normalize = 'max'`.
-4. **Check the fit.** The model should follow the data through the whole decay. Residuals of about 0.04 are sensor noise; a larger rms (the 75–90 µm standard gives 0.08) or residuals with a visible pattern mean something systematic remains, and the density or size distribution assumed for the standard is the first suspect. Record the lag-1 autocorrelation (about 0.4 is typical).
-5. **Read the K0 vs density table.** K0 changes strongly with the density you assumed for the standard. The spread over ±50 kg m⁻³ is the realistic uncertainty of K0; it is stored in the calibration file and should guide the `K0_factor` you use in step 3.
-6. **Check that the file was written.** The last line of the "Save" cell prints the stored K0, Kmin, rate and geometry.
-7. **Optional but recommended: test on a second standard.** Set `validate = True` and give a second standard of different size or density (its OBS csv, size range and density). The notebook predicts its decay with the stored calibration and no refit. A prediction rms close to the noise level (about 0.04) means the calibration transfers between particle sizes.
+1. **Set the input cell.** File names for the standard's OBS csv and the matching ADV csv (`adv_file = None` if you have no ADV record for this mixer rate); the rotation rate (`rpm`); tank geometry (water depth and sensor height above the bottom, in inches); water temperature and salinity; the settling-law coefficient (`coef`); the standard's size range, number of size classes and density. Both turbulence models are calibrated, the ADV shape and the exponential; without an ADV record only the exponential is. `default_model` (`'adv'`) is the one step 3 uses unless told otherwise. Leave the other turbulence options at their defaults unless you have a reason to change them. The output goes to `calibration_file`, for example `calibrations/cal_60rpm.json`; use a name that includes the mixer rate.
+2. **Run the notebook from the top.** It takes about three minutes with both models, most of it the density tables.
+3. **Check the ADV shape plot** (when there is an ADV record). The fluctuation variance should fall from a high value to a roughly flat noise floor within 20–35 s, and the noise-floor line should sit on that flat part. The shape should start at 1 and decay smoothly to zero. If the record is too short for the noise floor to be estimated from after 60 s, lower `adv_noise_from_s`; if the record starts with a weak spin-up window, set `adv_normalize = 'max'`.
+4. **Check the fit.** Both models are drawn against the data and should follow it through the whole decay; similar rms values (as on the sample) mean the OBS decay alone cannot choose between them. Residuals of about 0.04 are sensor noise; a larger rms (the 75–90 µm standard gives 0.08) or residuals with a visible pattern mean something systematic remains, and the density or size distribution assumed for the standard is the first suspect. Record the lag-1 autocorrelation (about 0.4 is typical).
+5. **Read the K0 vs density tables** (one per model). K0 changes strongly with the density you assumed for the standard. The spread over ±50 kg m⁻³ is the realistic uncertainty of K0; it is stored in the calibration file and should guide the `K0_factor` you use in step 3.
+6. **Check that the file was written.** The "Save" cell prints the stored K0, Kmin, rate and geometry of each model.
+7. **Optional but recommended: test on a second standard.** Set `validate = True` and give a second standard of different size or density (its OBS csv, size range and density). The notebook predicts its decay with each stored model and no refit. A prediction rms close to the noise level (about 0.04) means the calibration transfers between particle sizes.
 
-Repeat this step when the mixer rate, tank, water depth or sensor position changes. Different mixer rates need different calibration files, each with its own ADV file.
+Repeat this step when the mixer rate, tank, water depth or sensor position changes. Different mixer rates need different calibration files, each with its own ADV file (or none, for an exponential-only calibration).
 
 ## 2.6 Step 3: fit settling velocity (any number of runs)
 
@@ -121,14 +121,15 @@ Open `3_SettlingFit_v01.ipynb`.
    ```
 
    Anything set in the defaults block can be overridden for a single run by adding it to that run's entry.
-3. **Choose what to fit** (`what_to_fit`):
+3. **Choose the turbulence model** (`turb_model`): `'adv'` (ADV shape), `'exp'` (exponential), or `None` for the default stored in the calibration file. A file calibrated without an ADV record holds only `'exp'`. To see how much the model matters, list a run twice with different `turb_model` values; `turb_model` is a column of the results table.
+4. **Choose what to fit** (`what_to_fit`):
    * `'rhos'` for solid particles of unknown density (set `nf = 3`, the default);
    * `'nf'` for flocs of unknown fractal dimension (set `rhos_for_nf` and `dp_um`, and usually `coef = 1`);
    * `'ws50'` for the settling velocity at the median size without any density or fractal-dimension assumption (set `beta`).
-4. **Set the settling-law coefficient** (`coef`) for the type of particle (see the reference), and the water temperature and salinity of each run.
-5. **Run the notebook.** Each run takes about 25 s with the K0 sensitivity fits, about 10 s without (`do_sensitivity = False`).
-6. **Inspect the plots** (shown in the notebook and saved in `results/fit_plots/`). The model should follow the data; look at the residuals for a pattern. The rms is printed for each run.
-7. **Read the results table** (also written to `results/SettlingFit_results.csv`):
+5. **Set the settling-law coefficient** (`coef`) for the type of particle (see the reference), and the water temperature and salinity of each run.
+6. **Run the notebook.** Each run takes about 25 s with the K0 sensitivity fits, about 10 s without (`do_sensitivity = False`).
+7. **Inspect the plots** (shown in the notebook and saved in `results/fit_plots/`). The model should follow the data; look at the residuals for a pattern. The rms is printed for each run.
+8. **Read the results table** (also written to `results/SettlingFit_results.csv`):
    * `value` and `sigma`: the fitted density (kg m⁻³), fractal dimension, or velocity (mm s⁻¹) and its fit uncertainty;
    * `value_K0_low` and `value_K0_high`: the fitted value with K0 divided and multiplied by `K0_factor`; if these differ from `value` by much more than `sigma`, the turbulence calibration dominates the uncertainty and `sigma` alone should not be quoted;
    * `w50_mm_s` and its range, `w_mean_mm_s` (mass-weighted mean velocity) and `d50_um`: the settling velocity itself, regardless of mode;
@@ -171,7 +172,7 @@ for msg in ss.check_calibration(cal, cal['geom'], rpm=60):
     print('WARNING:', msg)
 
 row, fit, data = ss.fit_run('data_OBS/run07_time_series_decayONLY.csv', 'data_PSD/run07_PSD.csv', cal['geom'], cal,
-                            T=19.4, S=8.0, coef=3, what='rhos', K0_factor=1.4)
+                            T=19.4, S=0.0, coef=5, what='rhos', K0_factor=1.4)
 print(row['value'], row['sigma'], row['w50_mm_s'])
 ```
 
@@ -187,6 +188,7 @@ print(row['value'], row['sigma'], row['w50_mm_s'])
 | `ValueError: ADV record too short…` | The ADV record is shorter than `adv_noise_from_s`. Lower it or pass `adv_noise`. |
 | `ValueError: no turbulence above the noise floor in the first window` | The ADV record does not show a decaying signal; check that it starts at mixer-off. |
 | `is not a settling calibration file` | `calibration_file` points to the wrong file. |
+| `has no 'adv' calibration (it was calibrated without an ADV record)` | The calibration file holds only the exponential model; set `turb_model = 'exp'` (or `None`), or recalibrate with an ADV record. |
 | Fitted density is NaN, or a parameter sits at a bound | The fitted velocity is outside what the settling law gives for that size; check `d`, `coef`, `nf`, the PSD diameters (µm, not mm) and the OBS record. |
 | Residuals large, one sign for long stretches | Wrong standard density or PSD, wrong geometry, or a sensor or mixer setup different from the calibration. |
 | Slow | Fewer classes (`n_max_classes`), `do_sensitivity = False`, or a smaller `N` while exploring. |

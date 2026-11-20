@@ -28,7 +28,7 @@ There is no test suite. To check a change end to end, without touching the real 
 
 1. Copy only what git tracks into a scratch folder (for example `git archive HEAD | tar -x -C <scratch>`, plus any uncommitted edits).
 2. In that copy run `python tools/setup_work.py`, then execute the notebooks from `work/` in order 1 → 2 → 3 (and 0 if ADV code changed) with `jupyter nbconvert --to notebook --execute`.
-3. Expected on the sample: step 2 reproduces `work_template/calibrations/cal_60rpm.json` (K₀, K_min, rms), and step 3 gives a density of about 1199 kg m⁻³ (known: 1200).
+3. Expected on the sample: step 2 reproduces `work_template/calibrations/cal_60rpm.json` (K₀, K_min, τ, rms of both the `adv` and `exp` models), and step 3 gives a density of about 1198 kg m⁻³ (known: 1200).
 
 Notebooks use `%matplotlib widget` (ipympl), so steps 0 and 1 are interactive; values such as the averaging windows and `mixer_off` are read off those plots by the user.
 

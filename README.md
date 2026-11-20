@@ -10,7 +10,7 @@ After the mixer is switched off, particles settle past the sensor while residual
 |---|---|---|---|
 | 1 | `1_OBS_timeseries_v04.ipynb` | Prepare an OBS record: find $C_o$ and background, keep only the decay after the mixer stops, reset t = 0. Output: `*_time_series_decayONLY.csv`. | every new record |
 | – | `0_ADV_data_tank_v01.ipynb` | Prepare an ADV decay record. | with each calibration |
-| 2 | `2_SettlingCalibration_v01.ipynb` | Calibrate the turbulence model on a size standard. Output: a calibration file in `work/calibrations/`. | **once per mixer rate** and tank setup |
+| 2 | `2_SettlingCalibration_v01.ipynb` | Calibrate the turbulence models (ADV shape and exponential, or the exponential alone without an ADV record) on a size standard. Output: a calibration file in `work/calibrations/`. | **once per mixer rate** and tank setup |
 | 3 | `3_SettlingFit_v01.ipynb` | Fit density, fractal dimension or the median-size settling velocity for any number of runs. Output: results csv and one plot per run. | every set of runs |
 
 Most users run step 1 and then step 3 with an existing calibration file.
@@ -27,7 +27,7 @@ jupyter lab
 
 Work in the notebooks **inside `work/`**. That folder holds your copies of the notebooks together with all data, calibrations and results, and every path in the notebooks is relative to it. It is ignored by git, so `git pull` updates the code cleanly and nothing you process is ever committed. (Opening a template notebook in the project folder also works in `work/`, and creates `work/` on first run if needed.)
 
-To try it on the included sample (a 75–90 µm standard of known density): run `work/1_OBS_timeseries_v04.ipynb` to make its decay csv, then `work/3_SettlingFit_v01.ipynb`. No inputs need changing; the fit takes about a minute and returns a density of about 1199 kg m⁻³ against a known 1200. See the [user guide](docs/02_user_guide.md#22-installation) for the full sample walk-through.
+To try it on the included sample (a 75–90 µm standard of known density): run `work/1_OBS_timeseries_v04.ipynb` to make its decay csv, then `work/3_SettlingFit_v01.ipynb`. No inputs need changing; the fit takes about a minute and returns a density of about 1198 kg m⁻³ against a known 1200. See the [user guide](docs/02_user_guide.md#22-installation) for the full sample walk-through.
 
 For your own data, put the records in `work/data_OBS/`, `work/data_ADV/raw/` and `work/data_PSD/`, and change the inputs in the `work/` notebooks. Keep as many copies of a notebook as you like (for example one step 1 notebook per record). `git pull` updates `tools/` for your notebooks too; updated template notebooks reach `work/` only as new files when you rerun `python tools/setup_work.py` (it never overwrites). See `work/README.md` (copied from `work_template/README.md`).
 
@@ -65,7 +65,7 @@ docs/                            documentation
 ## Things to know before using results
 
 * A calibration is valid for **one mixer rotation rate in one tank setup** (water depth, sensor position). The notebooks warn if these differ.
-* The fit's ± is a fit uncertainty only. The turbulence calibration is the largest uncertainty: $K_0$ changes by a factor of about 2.5 for ±50 kg m⁻³ in the assumed density of the standard. Step 3 reports the fitted value with $K_0$ divided and multiplied by an uncertainty factor next to every result.
+* The fit's ± is a fit uncertainty only. The turbulence calibration is the largest uncertainty: $K_0$ changes by a factor of about 2.5–3 for ±50 kg m⁻³ in the assumed density of the standard. Step 3 reports the fitted value with $K_0$ divided and multiplied by an uncertainty factor next to every result.
 * The model is one-dimensional and does not represent the tank's spin-down circulation. Residuals for the supplied standard (rms about 0.08 against sensor noise of about 0.04) show that something systematic remains.
 * Testing the calibration on a second standard of different size or density (an optional section of step 2) is the recommended check.
 

@@ -15,8 +15,9 @@ Inputs you control:  particle size, geometry, water T/S, K0 / tau (from the ADV)
 Fitted:              the settling velocity w (optionally K0 and tau too, as a diagnostic).
 Afterwards:          invert_ws() turns w into particle density (nf fixed) or fractal dimension (density fixed).
 
-Turbulence can be given either as K(t) = Kmin + K0 exp(-t/tau) or, new in v03, as an ADV-derived shape:
+Turbulence can be given either as K(t) = Kmin + K0 exp(-t/tau) ('exp') or as an ADV-derived shape ('adv'):
 K(t) = Kmin + K0 * shape(t), with shape(t) from adv_shape() (shape(0) = 1, so K0 is the stirred-state diffusivity).
+Step 2 calibrates both when an ADV record is available (only 'exp' without one); step 3 picks one.
 
 Geometry convention follows SettlingFit_OBS_PolySize: water depth h and sensor height above the bottom z_obs.
 """
@@ -48,9 +49,9 @@ def visc(To):
 
 COEFS = {1: (20, 1.258),   # flocs matching Stokes at the primary particles
          2: (120, 0.0),    # viscous flocs
-         3: (18, 0.866),   # sieve-sized sand / smooth spheres (Ferguson & Church C1=18, C2=1)
+         3: (18, 0.866),   # sieve-sized sand (Ferguson & Church C1=18, C2=1; b2 = sqrt(0.75*C2))
          4: (20, 0.91),    # nominal diameter natural sand
-         5: (18, 0.548)}   # sphere
+         5: (18, 0.548)}   # smooth sphere, the size standards (Ferguson & Church C1=18, C2=0.4)
 
 
 def settlingvel(d_um, dp_um, nf, coef, rhos, T, S):
@@ -477,7 +478,37 @@ def sensitivity_psd(t, c, geom, d_um, p, which, T, S, coef, K0_list, tau=30.0, K
 
 # ----------------------------------------------------------------------------- calibration file (step 2 -> step 3 handoff)
 CAL_FORMAT = "settling_calibration"
-CAL_VERSION = 1
+CAL_VERSION = 2          # 2: one entry per turbulence model under "models"; version 1 files (one model) still load
+TURB_MODELS = ("adv", "exp")
+# parameters fitted by default for each turbulence model
+DEFAULT_FREE = dict(adv=("K0", "Kmin"), exp=("K0", "tau", "Kmin"))
+
+
+def calibrate_models(t, c, geom, ws, p, shape=None, free=None, K0=1e-4, tau=15.0, Kmin=5e-6, N=250):
+    """Calibrate every turbulence model the inputs allow: always the exponential ('exp'), and the ADV shape ('adv')
+    when `shape` (from adv_shape) is given.  free: dict model -> free parameters; models not in it use DEFAULT_FREE.
+    Returns {model: result of calibrate_turbulence_classes, with 'turb_mode' added}, 'adv' first when present."""
+    free = {**DEFAULT_FREE, **(free or {})}
+    out = {}
+    for m in (("adv", "exp") if shape is not None else ("exp",)):
+        r = calibrate_turbulence_classes(t, c, geom, ws, p, free=free[m], K0=K0, tau=tau, Kmin=Kmin, N=N,
+                                         shape=shape if m == "adv" else None)
+        r["turb_mode"] = m
+        out[m] = r
+    return out
+
+
+def cal_Kfun(cal, shape=None):
+    """K(t) of one calibrated model (an entry of calibrate_models, or load_calibration's result):
+    Kmin + K0*shape(t) for 'adv', Kmin + K0*exp(-t/tau) for 'exp'."""
+    if cal["turb_mode"] == "adv":
+        return shape_K(shape if shape is not None else cal["shape"], cal["K0"], cal["Kmin"])
+    return K_exp(cal["K0"], cal["tau"], cal["Kmin"])
+
+
+def model_c_cal(t, ws, p, cal, geom, shape=None, N=250):
+    """Model decay for class velocities ws and fractions p with one calibrated model (see cal_Kfun)."""
+    return model_c_classes(t, ws, p, cal["K0"], 30.0, cal["Kmin"], geom, N, Kfun=cal_Kfun(cal, shape))
 
 
 def calibration_sensitivity(t, c, geom, d_lo, d_hi, n_classes, rhos_list, T, S, coef, shape=None,
@@ -509,19 +540,34 @@ def _clean(o):
     return o
 
 
-def save_calibration(path, cal, geom, shape=None, rpm=None, standard=None, sensitivity=None, files=None, notes=""):
+def save_calibration(path, cals, geom, shape=None, rpm=None, standard=None, sensitivity=None, files=None, notes="",
+                     default_model=None):
     """Write the turbulence calibration to a json file for step 3 (SettlingFit).
-    cal: result of calibrate_turbulence_classes; shape: adv_shape dict (None for the exponential model);
+    cals: {model: result} from calibrate_models ('adv' and/or 'exp'); a single calibrate_turbulence_classes result is
+    also accepted (its model is 'adv' if `shape` is given, else 'exp').  shape: adv_shape dict (needed for 'adv');
+    sensitivity: {model: DataFrame from calibration_sensitivity} (or one DataFrame with a single result);
+    default_model: the model step 3 uses unless told otherwise ('adv' when calibrated, else 'exp');
     rpm: mixer rotation rate; standard: dict describing the standard (size range, density, T, S, coef ...);
-    sensitivity: DataFrame from calibration_sensitivity; files: dict of source file names; notes: free text."""
+    files: dict of source file names; notes: free text."""
     import os
+    if "K0" in cals:                                   # a single result (version 1 call)
+        m = "adv" if shape is not None else "exp"
+        cals, sensitivity = {m: cals}, {m: sensitivity}
+    sensitivity = sensitivity or {}
+    if "adv" in cals and shape is None:
+        raise ValueError("an 'adv' calibration needs the ADV shape (shape=...)")
+    default_model = default_model or ("adv" if "adv" in cals else "exp")
+    if default_model not in cals:
+        raise ValueError(f"default_model '{default_model}' was not calibrated (calibrated: {list(cals)})")
+    models = {}
+    for m, cal in cals.items():
+        models[m] = dict(K0=cal["K0"], Kmin=cal["Kmin"], tau=None if m == "adv" else cal["tau"],
+                         free=list(cal["free"]), rms=cal["rms"], rho1=cal["rho1"], sigma_ln=cal.get("sigma_ln"),
+                         shape=(dict(t=shape["t"], shape=shape["shape"], noise=shape["noise"]) if m == "adv" else None),
+                         K0_vs_standard_density=sensitivity.get(m))
     d = dict(format=CAL_FORMAT, version=CAL_VERSION, created=datetime.datetime.now().isoformat(timespec="seconds"),
-             rpm=rpm, geometry=dict(h=geom.h, z_obs=geom.z_obs),
-             turb_mode="adv" if shape is not None else "exp",
-             K0=cal["K0"], Kmin=cal["Kmin"], tau=None if shape is not None else cal["tau"],
-             free=list(cal["free"]), rms=cal["rms"], rho1=cal["rho1"], sigma_ln=cal.get("sigma_ln"),
-             shape=(None if shape is None else dict(t=shape["t"], shape=shape["shape"], noise=shape["noise"])),
-             standard=standard, K0_vs_standard_density=sensitivity, files=files, notes=notes)
+             rpm=rpm, geometry=dict(h=geom.h, z_obs=geom.z_obs), default_model=default_model, models=models,
+             standard=standard, files=files, notes=notes)
     folder = os.path.dirname(os.path.abspath(path))
     os.makedirs(folder, exist_ok=True)
     with open(path, "w") as f:
@@ -529,18 +575,35 @@ def save_calibration(path, cal, geom, shape=None, rpm=None, standard=None, sensi
     return path
 
 
-def load_calibration(path):
-    """Read a calibration file. Returns a dict with K0, Kmin, tau (30 s placeholder in 'adv' mode, where it is
-    unused), shape (adv_shape-style dict or None), geom (Geometry), rpm, turb_mode and the stored diagnostics."""
+def load_calibration(path, model=None):
+    """Read a calibration file and return ONE turbulence model of it: 'adv' (ADV shape), 'exp' (exponential), or
+    None for the file's default_model.  Returns a dict with K0, Kmin, tau (None for 'adv'), tau_used (30 s placeholder
+    for 'adv', where it is unused), shape (adv_shape-style dict or None), turb_mode (the model), available_models,
+    geom (Geometry), rpm, created, standard, K0_vs_standard_density and the other stored diagnostics.
+    Version 1 files (a single model) are read as a file holding only that model."""
     with open(path) as f:
         d = json.load(f)
     if d.get("format") != CAL_FORMAT:
         raise ValueError(f"{path} is not a settling calibration file")
-    sh = d.get("shape")
-    d["shape"] = None if sh is None else dict(t=np.asarray(sh["t"], float), shape=np.asarray(sh["shape"], float), noise=sh["noise"])
-    d["geom"] = Geometry(h=d["geometry"]["h"], z_obs=d["geometry"]["z_obs"])
-    d["tau_used"] = 30.0 if d.get("tau") is None else d["tau"]
-    return d
+    if "models" not in d:                              # version 1: one model at the top level
+        m1 = d.get("turb_mode") or ("adv" if d.get("shape") else "exp")
+        d["models"] = {m1: {k: d.get(k) for k in ("K0", "Kmin", "tau", "free", "rms", "rho1", "sigma_ln", "shape",
+                                                  "K0_vs_standard_density")}}
+        d["default_model"] = m1
+    available = list(d["models"])
+    m = model or d["default_model"]
+    if m not in d["models"]:
+        hint = " (it was calibrated without an ADV record)" if m == "adv" else ""
+        raise ValueError(f"{path} has no '{m}' calibration{hint}; available: {available}")
+    out = {k: v for k, v in d.items() if k != "models"}
+    out.update(d["models"][m])
+    out["turb_mode"], out["available_models"] = m, available
+    sh = out.get("shape")
+    out["shape"] = None if sh is None else dict(t=np.asarray(sh["t"], float), shape=np.asarray(sh["shape"], float),
+                                                noise=sh["noise"])
+    out["geom"] = Geometry(h=d["geometry"]["h"], z_obs=d["geometry"]["z_obs"])
+    out["tau_used"] = 30.0 if out.get("tau") is None else out["tau"]
+    return out
 
 
 def check_calibration(cal, geom=None, rpm=None, tol=0.02):
@@ -595,7 +658,8 @@ def fit_run(obs_file, psd_file, geom, cal, T, S, coef, what="rhos", nf=3.0, dp_u
                units={"rhos": "kg/m3", "nf": "-", "ws50": "mm/s"}[what],
                value=fit["value"] * scale, sigma=fit["sigma"] * scale,
                w50_mm_s=fit["w50"] * 1e3, w50_lo_mm_s=fit["w50_range"][0] * 1e3, w50_hi_mm_s=fit["w50_range"][1] * 1e3,
-               w_mean_mm_s=fit["w_mean"] * 1e3, d50_um=fit["d50"], rms=fit["rms"], rho1=fit["rho1"], K0=K0, Kmin=Kmin)
+               w_mean_mm_s=fit["w_mean"] * 1e3, d50_um=fit["d50"], rms=fit["rms"], rho1=fit["rho1"], turb_model=cal["turb_mode"], K0=K0, Kmin=Kmin,
+               tau=cal.get("tau"))
     if do_sensitivity:
         lo, hi = one(K0 / K0_factor), one(K0 * K0_factor)
         row.update(value_K0_low=lo["value"] * scale, value_K0_high=hi["value"] * scale, K0_factor=K0_factor)

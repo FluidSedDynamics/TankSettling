@@ -6,32 +6,32 @@ This page explains what the model assumes, how a settling velocity is extracted 
 
 A mixer keeps a suspension fully mixed in a tank. An optical backscatter sensor (OBS) at height $z_{obs}$ above the bed (depth $z_s = h - z_{obs}$ below the free surface, $h$ = water depth) records the total concentration. When the mixer stops (t = 0) particles settle out of the volume above the sensor and the signal falls from its initial value $C_o$ to a background value $C_{bg}$.
 
-If the water were perfectly still, a particle of settling velocity $w$ would leave the sensor level at $t = (h - z_{obs})/w$, and the decay would be a step (one size) or a smoothed ramp (a size distribution). In practice the tank is not still: turbulence from the mixer decays over roughly 10–35 s and keeps mixing particles vertically while they settle. The decay curve therefore contains both settling and residual mixing. The model separates the two by describing the mixing explicitly with a diffusivity $K(t)$ that is calibrated on a **size standard** (known size and density), so that the settling velocity of an unknown population can then be found from its decay alone.
+If the water were perfectly still, a particle of settling velocity $w_s$ would leave the sensor level at $t = (h - z_{obs})/w_s$, and the decay would be a step (one size) or a smoothed ramp (a size distribution). In practice the tank is not still: turbulence from the mixer decays over roughly 10–35 s and keeps mixing particles vertically while they settle. The decay curve therefore contains both settling and residual mixing. The model separates the two by describing the mixing explicitly with a diffusivity $K(t)$ that is calibrated on a **size standard** (known size and density), so that the settling velocity of an unknown population can then be found from its decay alone.
 
-Typical numbers (75–90 µm standard, $\rho_s$ = 1200 kg m⁻³, $h$ = 0.178 m, sensor 0.064 m above the bed): $w \approx 0.67$ mm s⁻¹, so clearing the sensor takes about 170 s; turbulence is gone after about 30 s; $K_0 \approx 10^{-4}$ m² s⁻¹. The diffusive spreading during the turbulent period, $\sqrt{4\int K\,dt}$ with $\int K\,dt \approx K_0\tau \approx 1.4\times10^{-3}$ m², is about 7 cm, comparable to the 11 cm between the sensor and the free surface. Free-space (erfc) solutions that ignore the surface and bed are therefore not accurate here, which is why the model includes the tank boundaries.
+Typical numbers (75–90 µm standard, $\rho_s$ = 1200 kg m⁻³, $h$ = 0.178 m, sensor 0.064 m above the bed): $w_s \approx 0.70$ mm s⁻¹, so clearing the sensor takes about 160 s; turbulence is gone after about 30 s; $K_0 \approx 10^{-4}$ m² s⁻¹. The diffusive spreading during the turbulent period, $\sqrt{4\int Kdt}$ with $\int Kdt \approx K_0\tau \approx 1.9\times10^{-3}$ m², is about 9 cm, comparable to the 11 cm between the sensor and the free surface. Free-space (erfc) solutions that ignore the surface and bed are therefore not accurate here, which is why the model includes the tank boundaries.
 
 ## 1.2 Governing equation
 
-With $z$ measured **downward from the free surface** ($z = 0$ surface, $z = h$ bed), the concentration $c(z,t)$ of a size class with settling velocity $w$ obeys
+With $z$ measured **downward from the free surface** ($z = 0$ surface, $z = h$ bed), the concentration $c(z,t)$ of a size class with settling velocity $w_s$ obeys
 
-$$\frac{\partial c}{\partial t} + \frac{\partial}{\partial z}\left(w\,c - K(t)\,\frac{\partial c}{\partial z}\right) = 0 .$$
+$$\frac{\partial c}{\partial t} + \frac{\partial}{\partial z}\left(w_sc - K(t)\frac{\partial c}{\partial z}\right) = 0 .$$
 
 * $K$ is uniform in depth and depends only on time after the mixer stops.
-* **Free surface** ($z = 0$): no particle flux, $w c - K\,\partial_z c = 0$.
-* **Bed** ($z = h$): particles that reach the bed stay there, flux $= D\,w\,c$ with $D = 1$ (perfect deposition; $D = 0$ would be a reflecting bed). The bed absorbs settled mass and the model tracks it, so mass is conserved.
+* **Free surface** ($z = 0$): no particle flux, $w_s c - K\partial_z c = 0$.
+* **Bed** ($z = h$): particles that reach the bed stay there, flux $= Dw_sc$ with $D = 1$ (perfect deposition; $D = 0$ would be a reflecting bed). The bed absorbs settled mass and the model tracks it, so mass is conserved.
 * The **initial state** is the steady profile in a stirred tank with diffusivity $K_0 = K(0)$ and zero net flux:
 
-$$c(z,0) \;\propto\; \exp\!\left[\frac{w\,(z-h)}{K_0}\right],$$
+$$c(z,0) \propto \exp\left[\frac{w_s(z-h)}{K_0}\right],$$
 
-normalised to the depth-mean concentration of the class. The Péclet number $Pe = w h/K_0$ says how uniform this is: close to uniform when $Pe \ll 1$, bottom-heavy when $Pe \gtrsim 1$. For the standard above, $Pe \approx 1.2$, so the stirred profile is measurably non-uniform and the initial value at the sensor differs from the depth mean. The model handles this because it normalises by its own initial value at the sensor (section 1.6).
+normalised to the depth-mean concentration of the class. The Péclet number $Pe = w_s h/K_0$ says how uniform this is: close to uniform when $Pe \ll 1$, bottom-heavy when $Pe \gtrsim 1$. For the standard above, $Pe \approx 1.0$, so the stirred profile is measurably non-uniform and the initial value at the sensor differs from the depth mean. The model handles this because it normalises by its own initial value at the sensor (section 1.6).
 
 ## 1.3 The turbulence model $K(t)$
 
-Two forms are available.
+Two forms are available. Step 2 calibrates both (only the exponential when there is no ADV record), and step 3 uses either.
 
-**Exponential:** $K(t) = K_{min} + K_0\,e^{-t/\tau}$, with $K_0$, $\tau$ and $K_{min}$ fitted on the standard.
+**Exponential:** $K(t) = K_{min} + K_0e^{-t/\tau}$, with $K_0$, $\tau$ and $K_{min}$ fitted on the standard.
 
-**ADV shape:** $K(t) = K_{min} + K_0\,s(t)$, where $s(t)$ is a dimensionless decay shape measured with an acoustic Doppler velocimeter (ADV) in the same tank at the same mixer rate, with $s(0) = 1$. This removes the strong trade-off between $K_0$ and $\tau$ that a decay curve alone cannot resolve.
+**ADV shape:** $K(t) = K_{min} + K_0s(t)$, where $s(t)$ is a dimensionless decay shape measured with an acoustic Doppler velocimeter (ADV) in the same tank at the same mixer rate, with $s(0) = 1$. This removes the strong trade-off between $K_0$ and $\tau$ that a decay curve alone cannot resolve.
 
 **How the shape is obtained** (`adv_shape`):
 
@@ -51,13 +51,18 @@ The domain $0 \le z \le h$ is divided into $N$ equal cells (200–600 depending 
 
 A single parameter sets the velocity of every size class through a settling law (Ferguson & Church, extended to fractal aggregates):
 
-$$w = \frac{g\,R\,d^{\,n_f-1}}{C_1\,\nu\,d_p^{\,n_f-3} + C_2\sqrt{g\,R\,d^{\,n_f}\,d_p^{\,n_f-3}}},\qquad R = \frac{\rho_s-\rho_w}{\rho_w}.$$
+$$w_s = \frac{gRd^{2}}{b_1\nu + b_2\sqrt{gRd^{3}}},$$
 
-* $d$ is the particle (floc) diameter, $d_p$ the primary particle diameter, $n_f$ the fractal dimension ($n_f = 3$ is a solid particle, for which $d_p$ drops out).
+where $R$ is the submerged specific gravity of the particle (solid or porous floc) of size $d$:
+
+$$R = R_s\left(\frac{d}{d_p}\right)^{n_f-3},\qquad R_s = \frac{\rho_s-\rho_w}{\rho_w}.$$
+
+* $d$ is the particle (floc) diameter, $d_p$ the primary particle diameter, $n_f$ the fractal dimension ($n_f = 3$ is a solid particle, for which $R = R_s$ and $d_p$ drops out).
+* $R_s$ is the submerged specific gravity of the primary particles, with $\rho_s$ their density.
 * $\rho_w(T, S)$ and the kinematic viscosity $\nu(T)$ come from the water temperature and salinity.
-* $(C_1, C_2)$ are set by the coefficient choice: 1 flocs matching Stokes at the primary particles (20, 1.258), 2 viscous flocs (120, 0), 3 sieve-sized sand or smooth spheres (18, 0.866), 4 nominal-diameter natural sand (20, 0.91), 5 sphere (18, 0.548).
+* $(b_1, b_2)$ are set by the coefficient choice: 1 flocs matching Stokes at the primary particles (20, 1.258), 2 viscous flocs (120, 0), 3 sieve-sized sand (18, 0.866), 4 nominal-diameter natural sand (20, 0.91), 5 smooth sphere (18, 0.548).
 
-A fitted $w$ is converted back to a density (solid particles, $n_f$ fixed) or to a fractal dimension (flocs, density and primary size fixed) by solving this relation. The inversion returns "no solution" if $w$ lies outside what the law can produce for the given size.
+A fitted $w_s$ is converted back to a density (solid particles, $n_f$ fixed) or to a fractal dimension (flocs, density and primary size fixed) by solving this relation. The inversion returns "no solution" if $w_s$ lies outside what the law can produce for the given size.
 
 ## 1.6 What the sensor sees: observation model and size distributions
 
@@ -72,7 +77,7 @@ For a size distribution the classes are independent (the equation is linear), so
 
 $$c_{obs}(t) = \sum_i c_i(z_s, t).$$
 
-$p_i$ is the fraction of the initial OBS signal carried by class $i$. If the PSD file gives mass or volume fractions and the sensor responds differently per unit mass at different sizes (backscatter per unit mass falls with size for particles larger than the wavelength), a response weighting $p_i \propto \text{amount}_i\,(d_i/d_{50})^{-\mathrm{gain\_exp}}$ can be applied. The default, `gain_exp = 0`, treats the PSD amounts as signal fractions. A single size is a PSD with one class.
+$p_i$ is the fraction of the initial OBS signal carried by class $i$. If the PSD file gives mass or volume fractions and the sensor responds differently per unit mass at different sizes (backscatter per unit mass falls with size for particles larger than the wavelength), a response weighting $p_i \propto \text{amount}_i(d_i/d_{50})^{-\mathrm{gain\_exp}}$ can be applied. The default, `gain_exp = 0`, treats the PSD amounts as signal fractions. A single size is a PSD with one class.
 
 ## 1.7 Estimation
 
@@ -86,15 +91,15 @@ The unknown (density, fractal dimension, or a velocity scale) is found by non-li
 |---|---|---|
 | `rhos` | density of solid particles ($n_f$ fixed) | settling law at each class diameter |
 | `nf` | fractal dimension of flocs (density and $d_p$ fixed) | settling law at each class diameter |
-| `ws50` | velocity at the median size | $w_i = w_{50}(d_i/d_{50})^{\beta}$, no density or $n_f$ assumption |
+| `ws50` | velocity at the median size | $w_{s,i} = w_{s,50}(d_i/d_{50})^{\beta}$, no density or $n_f$ assumption |
 
 `ws50` is the least assumption-laden summary of the settling (it needs only the slope $\beta$ of the velocity spectrum: about 2 in the Stokes range, about 1.3 for 75–90 µm sand-like spheres in this law). `rhos` and `nf` add the settling law.
 
 ## 1.8 Why and how the turbulence is calibrated
 
-On a decay curve alone, a faster-settling population with more mixing and a slower population with less mixing can look alike, so $w$ and $K$ are partly interchangeable. The calibration breaks this by using a standard whose settling velocities are known from its size range and density. With those velocities **fixed**, only the turbulence parameters ($K_0$ and $K_{min}$, or $K_0$, $\tau$ and $K_{min}$) are fitted. The resulting $K(t)$ is then held fixed when fitting unknown populations in the same tank at the same mixer rate.
+On a decay curve alone, a faster-settling population with more mixing and a slower population with less mixing can look alike, so $w_s$ and $K$ are partly interchangeable. The calibration breaks this by using a standard whose settling velocities are known from its size range and density. With those velocities **fixed**, only the turbulence parameters ($K_0$ and $K_{min}$, or $K_0$, $\tau$ and $K_{min}$) are fitted. The resulting $K(t)$ is then held fixed when fitting unknown populations in the same tank at the same mixer rate.
 
-The calibration is exactly as good as the standard's description. $K_0$ trades off strongly against the assumed density: for the 75–90 µm standard, changing the density by ±50 kg m⁻³ changes $K_0$ by a factor of about 2.5 (4.2×10⁻⁵ to 2.6×10⁻⁴ m² s⁻¹) while the fit quality barely changes. The calibration notebook tabulates this, and the fit notebook propagates a $K_0$ uncertainty factor (`K0_factor`) into every result so that it is visible next to the fit's own ±.
+The calibration is exactly as good as the standard's description. $K_0$ trades off strongly against the assumed density: for the 75–90 µm standard, changing the density by ±50 kg m⁻³ changes $K_0$ by a factor of about 2.5–3 (5.0×10⁻⁵ to 3.9×10⁻⁴ m² s⁻¹ with the ADV shape) while the fit quality barely changes. The calibration notebook tabulates this for each model, and the fit notebook propagates a $K_0$ uncertainty factor (`K0_factor`) into every result so that it is visible next to the fit's own ±.
 
 The real test of a calibration is to use it to **predict** the decay of a second standard of different size or density with no refitting. A prediction rms near the noise level shows that the turbulence model transfers between particle sizes; a clearly larger rms points to the assumed density or size distribution of one of the standards, or to the 1-D model.
 
